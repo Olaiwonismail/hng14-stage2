@@ -1,0 +1,8 @@
+flask>=3.0
+flask-cors
+sqlalchemy>=2.0
+psycopg2-binary
+uuid-utils
+python-dotenv
+pytest
+hypothesis
