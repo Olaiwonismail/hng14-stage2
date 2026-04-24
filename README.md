@@ -1,108 +1,93 @@
-# Intelligence Query Engine
+# Intelligence Query Engine API
 
 A Flask-based REST API for querying demographic profile data with advanced filtering, sorting, pagination, and natural language search capabilities.
 
-Built for **Insighta Labs** — a demographic intelligence company serving marketing teams, product teams, and growth analysts.
+## 🚀 Quick Start
+
+```bash
+# Clone and setup
+git clone <your-repo-url>
+cd intelligence-query-engine
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Configure database
+cp .env.example .env
+# Edit .env with your PostgreSQL credentials
+
+# Seed database
+python scripts/seed.py
+
+# Run server
+python run.py
+```
+
+API available at: `http://127.0.0.1:5000`
 
 ---
 
-## Features
+## 📋 Table of Contents
 
-- **GET /api/profiles** — Filterable, sortable, paginated profile listing
-- **GET /api/profiles/search** — Natural language query endpoint (rule-based, no AI/LLMs)
-- **Idempotent data seeder** — Load 2026 profiles from JSON with UUID v7 generation
-- **PostgreSQL backend** — Robust indexing, CHECK constraints, and parameterized queries
-- **CORS enabled** — `Access-Control-Allow-Origin: *` on all `/api/*` routes
-- **Property-based testing** — Hypothesis-powered correctness validation
+- [Features](#features)
+- [API Endpoints](#api-endpoints)
+- [Natural Language Parser](#natural-language-parser)
+- [Setup Guide](#setup-guide)
+- [Testing](#testing)
+- [Deployment](#deployment)
 
 ---
 
-## Architecture
+## ✨ Features
+
+- **Advanced Filtering** — 7 filter parameters (gender, age_group, country_id, min/max age, probability thresholds)
+- **Natural Language Search** — Plain English queries like "young males from nigeria"
+- **Sorting & Pagination** — Sort by age, created_at, or gender_probability; paginate with page/limit
+- **CORS Enabled** — `Access-Control-Allow-Origin: *` on all routes
+- **Idempotent Seeding** — Load 2026 profiles safely (re-runs skip duplicates)
+- **UUID v7** — Time-ordered unique identifiers for all profiles
+- **PostgreSQL Backend** — Indexed queries, CHECK constraints, parameterized statements
+
+---
+
+## 🛠 Tech Stack
 
 ```
-Flask 3.x (application factory + Blueprints)
-├── SQLAlchemy Core (query builder, no ORM)
-├── PostgreSQL 15+ (UUID v7, indexes, constraints)
+Flask 3.x + SQLAlchemy Core + PostgreSQL 15+
 ├── flask-cors (CORS middleware)
 ├── uuid-utils (UUID v7 generation)
-└── hypothesis (property-based testing)
-```
-
-**Project structure:**
-
-```
-intelligence-query-engine/
-├── app/
-│   ├── __init__.py          # Application factory
-│   ├── config.py            # Config classes (Development, Testing, Production)
-│   ├── extensions.py        # SQLAlchemy engine init
-│   ├── serialisers.py       # Row → JSON conversion
-│   ├── blueprints/
-│   │   ├── profiles/        # GET /api/profiles
-│   │   │   ├── routes.py
-│   │   │   └── validator.py
-│   │   └── search/          # GET /api/profiles/search
-│   │       └── routes.py
-│   ├── db/
-│   │   ├── schema.py        # Table definitions + DDL helpers
-│   │   └── queries.py       # Query builder
-│   └── nl_parser/
-│       ├── parser.py        # Rule-based NL → filter dict
-│       └── country_map.py   # Country name → ISO alpha-2 lookup
-├── scripts/
-│   └── seed.py              # Idempotent data seeder
-├── tests/
-│   ├── conftest.py          # pytest fixtures + Hypothesis config
-│   ├── unit/
-│   │   ├── test_nl_parser.py
-│   │   └── test_serialisers.py
-│   └── integration/
-│       ├── test_profiles_endpoint.py
-│       └── test_search_endpoint.py
-├── data/
-│   └── profiles.json        # Seed data (2026 profiles)
-├── .env.example
-├── requirements.txt
-├── run.py
-└── README.md
+├── psycopg2-binary (PostgreSQL adapter)
+└── pytest + hypothesis (testing)
 ```
 
 ---
 
-## Setup
+## 🔧 Setup Guide
 
 ### Prerequisites
 
-- **Python 3.10+**
-- **PostgreSQL 15+** (local or remote)
+- Python 3.10+
+- PostgreSQL 15+
 
-### 1. Clone the repository
+### Installation
 
 ```bash
+# 1. Clone repository
 git clone <your-repo-url>
 cd intelligence-query-engine
-```
 
-### 2. Create a virtual environment
-
-```bash
+# 2. Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-### 3. Install dependencies
-
-```bash
+# 3. Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Configure environment variables
-
-Copy `.env.example` to `.env` and set your database URL:
-
-```bash
+# 4. Configure environment
 cp .env.example .env
 ```
+
+### Database Configuration
 
 Edit `.env`:
 
@@ -113,78 +98,86 @@ SECRET_KEY=your-secret-key-here
 FLASK_ENV=development
 ```
 
-### 5. Seed the database
-
-Run the seeder script to load 2026 profiles:
+### Seed Database
 
 ```bash
 python scripts/seed.py
 ```
 
-**Output:**
-
+**Expected output:**
 ```
 2024-04-24T10:30:00 [INFO] Loaded 2026 profiles from data/profiles.json
-2024-04-24T10:30:05 [INFO] Seeding complete — inserted: 2026, skipped (already existed): 0
+2024-04-24T10:30:05 [INFO] Seeding complete — inserted: 2026, skipped: 0
 ```
 
-Re-running the seeder is safe — it uses `INSERT ... ON CONFLICT (name) DO NOTHING` to skip duplicates.
+Re-running is safe — duplicates are skipped automatically.
 
-### 6. Start the development server
+### Run Server
 
 ```bash
+# Development
 python run.py
+
+# Or using Flask CLI
+flask run
+
+# Production (with Gunicorn)
+pip install gunicorn
+gunicorn -w 4 -b 0.0.0.0:5000 "app:create_app()"
 ```
 
-Or use Flask's CLI:
+Server runs at: `http://127.0.0.1:5000`
+
+### Verify Installation
 
 ```bash
-flask run
-```
+# Test profiles endpoint
+curl "http://127.0.0.1:5000/api/profiles?limit=5"
 
-The API will be available at `http://127.0.0.1:5000`.
+# Test search endpoint
+curl "http://127.0.0.1:5000/api/profiles/search?q=young+males"
+```
 
 ---
 
-## API Reference
+## 📡 API Endpoints
 
 ### Base URL
-
 ```
 http://127.0.0.1:5000/api
 ```
 
-All responses include `Access-Control-Allow-Origin: *`.
+All responses include `Access-Control-Allow-Origin: *`
 
 ---
 
-### GET /api/profiles
+### **GET /api/profiles**
 
 Retrieve profiles with filtering, sorting, and pagination.
 
-**Query Parameters:**
+#### Query Parameters
 
-| Parameter                | Type    | Description                                      | Default      |
-|--------------------------|---------|--------------------------------------------------|--------------|
-| `gender`                 | string  | Filter by gender (`male` or `female`)            | —            |
-| `age_group`              | string  | Filter by age group (`child`, `teenager`, `adult`, `senior`) | — |
-| `country_id`             | string  | Filter by ISO alpha-2 country code (case-insensitive) | — |
-| `min_age`                | integer | Minimum age (inclusive)                          | —            |
-| `max_age`                | integer | Maximum age (inclusive)                          | —            |
-| `min_gender_probability` | float   | Minimum gender confidence score                  | —            |
-| `min_country_probability`| float   | Minimum country confidence score                 | —            |
-| `sort_by`                | string  | Sort field (`age`, `created_at`, `gender_probability`) | `created_at` |
-| `order`                  | string  | Sort order (`asc` or `desc`)                     | `desc`       |
-| `page`                   | integer | Page number (≥ 1)                                | `1`          |
-| `limit`                  | integer | Results per page (1–50)                          | `10`         |
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `gender` | string | `male` or `female` | — |
+| `age_group` | string | `child`, `teenager`, `adult`, `senior` | — |
+| `country_id` | string | ISO alpha-2 code (case-insensitive) | — |
+| `min_age` | integer | Minimum age (inclusive) | — |
+| `max_age` | integer | Maximum age (inclusive) | — |
+| `min_gender_probability` | float | Min confidence score | — |
+| `min_country_probability` | float | Min confidence score | — |
+| `sort_by` | string | `age`, `created_at`, `gender_probability` | `created_at` |
+| `order` | string | `asc` or `desc` | `desc` |
+| `page` | integer | Page number (≥ 1) | `1` |
+| `limit` | integer | Results per page (1–50) | `10` |
 
-**Example Request:**
+#### Example Request
 
 ```bash
-GET /api/profiles?gender=male&country_id=NG&min_age=25&sort_by=age&order=desc&page=1&limit=10
+curl "http://127.0.0.1:5000/api/profiles?gender=male&country_id=NG&min_age=25&sort_by=age&order=desc&limit=10"
 ```
 
-**Success Response (200):**
+#### Success Response (200)
 
 ```json
 {
@@ -209,174 +202,211 @@ GET /api/profiles?gender=male&country_id=NG&min_age=25&sort_by=age&order=desc&pa
 }
 ```
 
-**Error Responses:**
+#### Error Responses
 
-- **400 Bad Request** — Invalid query parameters (unknown param, invalid enum value, `limit > 50`)
-- **422 Unprocessable Entity** — Invalid parameter type (e.g., non-integer `min_age`)
-- **500/502 Server Failure** — Database connection error
+- **400** — Invalid query parameters
+- **422** — Invalid parameter type
+- **500/502** — Server failure
 
 ---
 
-### GET /api/profiles/search
+### **GET /api/profiles/search**
 
 Search profiles using plain English queries.
 
-**Query Parameters:**
+#### Query Parameters
 
-| Parameter | Type    | Description                                      | Required |
-|-----------|---------|--------------------------------------------------|----------|
-| `q`       | string  | Plain-English query string                       | Yes      |
-| `page`    | integer | Page number (≥ 1)                                | No       |
-| `limit`   | integer | Results per page (1–50)                          | No       |
+| Parameter | Type | Description | Required |
+|-----------|------|-------------|----------|
+| `q` | string | Plain-English query | ✅ Yes |
+| `page` | integer | Page number | No |
+| `limit` | integer | Results per page (1–50) | No |
 
-**Example Request:**
+#### Example Request
 
 ```bash
-GET /api/profiles/search?q=young+males+from+nigeria
+curl "http://127.0.0.1:5000/api/profiles/search?q=young+males+from+nigeria"
 ```
 
-**Success Response (200):**
+#### Success Response (200)
 
-Same structure as `/api/profiles`.
+Same structure as `/api/profiles`
 
-**Error Responses:**
+#### Error Responses
 
-- **400 Bad Request** — Missing/empty `q`, or uninterpretable query
-- **422 Unprocessable Entity** — Invalid `page`/`limit` type
-- **500/502 Server Failure** — Database connection error
-
----
-
-## Natural Language Parser
-
-The NL parser is a **pure function** — it uses **rule-based pattern matching** with no AI or LLM dependencies.
-
-### Supported Keywords and Phrases
-
-| Keyword / Phrase          | Mapped Filter(s)                          |
-|---------------------------|-------------------------------------------|
-| `young`                   | `min_age=16`, `max_age=24`                |
-| `male` / `males`          | `gender=male`                             |
-| `female` / `females`      | `gender=female`                           |
-| `male and female`         | Gender filter omitted (all genders)       |
-| `above N`                 | `min_age=N`                               |
-| `below N`                 | `max_age=N`                               |
-| `over N`                  | `min_age=N` (alias for "above")           |
-| `under N`                 | `max_age=N` (alias for "below")           |
-| `older than N`            | `min_age=N`                               |
-| `younger than N`          | `max_age=N`                               |
-| `child` / `children`      | `age_group=child`                         |
-| `teenager` / `teenagers`  | `age_group=teenager`                      |
-| `teen` / `teens`          | `age_group=teenager`                      |
-| `adult` / `adults`        | `age_group=adult`                         |
-| `senior` / `seniors`      | `age_group=senior`                        |
-| `elderly`                 | `age_group=senior`                        |
-| `from <country name>`     | `country_id=<ISO alpha-2>`                |
-| `in <country name>`       | `country_id=<ISO alpha-2>` (alias)        |
-
-### How Multiple Keywords Are Combined
-
-All matched keywords are combined with **AND logic** (conjunction). For example:
-
-- `"young males from nigeria"` → `gender=male AND min_age=16 AND max_age=24 AND country_id=NG`
-- `"adult females above 30"` → `gender=female AND age_group=adult AND min_age=30`
-
-### Example Queries and Resolved Filters
-
-| Query                                  | Resolved Filters                                                      |
-|----------------------------------------|-----------------------------------------------------------------------|
-| `young males`                          | `gender=male`, `min_age=16`, `max_age=24`                             |
-| `females above 30`                     | `gender=female`, `min_age=30`                                         |
-| `people from angola`                   | `country_id=AO`                                                       |
-| `adult males from kenya`               | `gender=male`, `age_group=adult`, `country_id=KE`                     |
-| `male and female teenagers above 17`   | `age_group=teenager`, `min_age=17` (gender omitted)                   |
-| `seniors from south africa`            | `age_group=senior`, `country_id=ZA`                                   |
-
-### Limitations and Edge Cases
-
-**Not Handled:**
-
-- **OR logic** — "males or females" is not supported; use separate queries
-- **Negation** — "not from nigeria" is not supported
-- **Ranges with both bounds** — "between 20 and 30" is not supported; use "above 20" or "below 30" separately
-- **Fuzzy country names** — Only exact matches (case-insensitive) from the country map are recognized
-- **Ambiguous queries** — "young adults" will match both "young" (16–24) and "adult" age group, which may conflict
-- **Complex phrases** — "people who are either male or female and above 30" will not parse correctly
-
-**Workarounds:**
-
-- For OR logic, make multiple API calls and merge results client-side
-- For ranges, use `min_age` and `max_age` query params directly on `/api/profiles`
-- For unsupported countries, use the ISO alpha-2 code directly on `/api/profiles?country_id=XX`
+- **400** — Missing/empty `q` or uninterpretable query
+- **422** — Invalid `page`/`limit` type
+- **500/502** — Server failure
 
 ---
 
-## Testing
+## 🧠 Natural Language Parser
 
-### Run all tests
+The NL parser converts plain English queries into structured filters using **rule-based pattern matching** (no AI/LLMs).
+
+### Supported Keywords
+
+| Keyword/Phrase | Mapped Filter(s) |
+|----------------|------------------|
+| `young` | `min_age=16`, `max_age=24` |
+| `male` / `males` | `gender=male` |
+| `female` / `females` | `gender=female` |
+| `male and female` | *(gender filter omitted)* |
+| `above N` / `over N` / `older than N` | `min_age=N` |
+| `below N` / `under N` / `younger than N` | `max_age=N` |
+| `child` / `children` | `age_group=child` |
+| `teenager` / `teen` | `age_group=teenager` |
+| `adult` / `adults` | `age_group=adult` |
+| `senior` / `elderly` | `age_group=senior` |
+| `from <country>` / `in <country>` | `country_id=<ISO code>` |
+
+### Example Queries
+
+```bash
+# Young males
+?q=young+males
+→ gender=male, min_age=16, max_age=24
+
+# Females above 30
+?q=females+above+30
+→ gender=female, min_age=30
+
+# Adult males from Kenya
+?q=adult+males+from+kenya
+→ gender=male, age_group=adult, country_id=KE
+
+# Male and female teenagers above 17
+?q=male+and+female+teenagers+above+17
+→ age_group=teenager, min_age=17 (gender omitted)
+```
+
+### How It Works
+
+1. **Multiple keywords** are combined with **AND logic**
+2. **65 countries** supported (Nigeria, Kenya, Ghana, South Africa, etc.)
+3. **Case-insensitive** matching
+4. **Unrecognized queries** return `400` with `"Unable to interpret query"`
+
+### Limitations
+
+❌ **Not supported:**
+- OR logic ("males or females")
+- Negation ("not from nigeria")
+- Complex ranges ("between 20 and 30")
+- Fuzzy country names (must match country map)
+
+✅ **Workarounds:**
+- Use `/api/profiles` with direct filter params for unsupported patterns
+- Make multiple API calls and merge results client-side for OR logic
+
+---
+
+## 🧪 Testing
+
+### Run All Tests
 
 ```bash
 pytest tests/
 ```
 
-### Run unit tests only
+### Run Unit Tests Only
 
 ```bash
-pytest tests/unit/
+pytest tests/unit/ -v
 ```
 
-### Run integration tests only
+### Run Integration Tests Only
 
 ```bash
-pytest tests/integration/
+pytest tests/integration/ -v
 ```
 
-**Note:** Integration tests require a PostgreSQL test database. Set `TEST_DATABASE_URL` in your `.env` file.
+**Note:** Integration tests require PostgreSQL. Set `TEST_DATABASE_URL` in `.env`
 
-### Property-Based Testing
+### Test Coverage
 
-The test suite includes Hypothesis-powered property tests that validate universal correctness properties across 100 iterations per test. These are marked as optional in the task list but are included for robustness.
+- **45 unit tests** — NL parser, serialiser, validator
+- **Integration tests** — Profiles endpoint, search endpoint, CORS, error handling
+- **Property-based tests** — Hypothesis-powered (100 iterations per test)
 
 ---
 
-## Deployment
-
-### Environment Variables
-
-Set the following in your production environment:
-
-- `DATABASE_URL` — PostgreSQL connection string
-- `SECRET_KEY` — Flask secret key (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
-- `FLASK_ENV=production`
+## 🚀 Deployment
 
 ### Supported Platforms
 
-- **Vercel** (recommended for Flask apps)
-- **Railway**
-- **Heroku**
-- **AWS Elastic Beanstalk**
-- **PXXL App**
-- **Any platform supporting Python 3.10+ and PostgreSQL**
+✅ **Vercel** | **Railway** | **Heroku** | **AWS** | **PXXL App**  
+❌ **Render** (not accepted per requirements)
 
-**Not supported:** Render (per project requirements)
+### Environment Variables
+
+```env
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+SECRET_KEY=<generate-with-secrets.token_hex(32)>
+FLASK_ENV=production
+```
 
 ### Pre-Deployment Checklist
 
-1. Seed the production database: `python scripts/seed.py`
-2. Verify all 2026 profiles are loaded
-3. Test both endpoints from multiple networks
-4. Confirm CORS headers are present on all responses
+- [ ] Set up production PostgreSQL database
+- [ ] Configure environment variables
+- [ ] Run seeder: `python scripts/seed.py`
+- [ ] Verify 2026 profiles loaded
+- [ ] Test both endpoints from multiple networks
+- [ ] Confirm CORS headers present
+
+### Production Server
+
+```bash
+pip install gunicorn
+gunicorn -w 4 -b 0.0.0.0:5000 "app:create_app()"
+```
 
 ---
 
-## License
+## 📁 Project Structure
+
+```
+intelligence-query-engine/
+├── app/
+│   ├── __init__.py          # Application factory
+│   ├── config.py            # Config classes
+│   ├── extensions.py        # SQLAlchemy engine
+│   ├── serialisers.py       # JSON serialisation
+│   ├── blueprints/
+│   │   ├── profiles/        # GET /api/profiles
+│   │   └── search/          # GET /api/profiles/search
+│   ├── db/
+│   │   ├── schema.py        # Table definitions
+│   │   └── queries.py       # Query builder
+│   └── nl_parser/
+│       ├── parser.py        # NL → filters
+│       └── country_map.py   # Country lookup
+├── scripts/
+│   └── seed.py              # Database seeder
+├── tests/
+│   ├── unit/                # Unit tests
+│   └── integration/         # Integration tests
+├── data/
+│   └── profiles.json        # 2026 profiles
+├── .env.example
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 📝 License
 
 MIT
 
 ---
 
-## Contact
+## 🤝 Contributing
 
-For questions or issues, contact the Insighta Labs team.
-#   h n g 1 4 - s t a g e 2  
+Built for **HNG Stage 2 Backend Challenge** — Insighta Labs Intelligence Query Engine
+
+For questions or issues, open a GitHub issue.
+#   h n g 1 4 - s t a g e 2 
+ 
  
